@@ -28,7 +28,7 @@ public class Main {
         try {
             // CLIENT -> RANDOM APPOINTMENT (+ RANDOM CANCELATION)
             for(int i = 0; i < n_clients; ++i) {
-                clientThreads[i] = new Thread(cl::makeRandomAppointment);
+                clientThreads[i] = new Thread(cl::simulate);
                 clientThreads[i].start();
             }
             for(int i = 0; i < n_clients; ++i) {
