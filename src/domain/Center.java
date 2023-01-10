@@ -17,17 +17,6 @@ public class Center {
         this.appointments = new ArrayList<>();
     }
 
-    public void addTreatment(Treatment treatment) {
-        if(!treatments.containsKey(treatment.getId())) {
-            this.treatments.put(treatment.getId(), treatment);
-            this.maxCapacity.put(treatment, 1);
-        }
-    }
-
-    public Treatment getTreatment(int id) {
-        return this.treatments.get(id);
-    }
-
     public void initializeDefaultCenter() {
         this.addTreatment(new Treatment(1,50,120));
         this.addTreatment(new Treatment(2,20,20));
@@ -41,6 +30,26 @@ public class Center {
         this.setMaxCapacity(5, 1);
     }
 
+    public void addTreatment(Treatment treatment) {
+        if(!treatments.containsKey(treatment.getId())) {
+            this.treatments.put(treatment.getId(), treatment);
+            this.maxCapacity.put(treatment, 1);
+        }
+    }
+
+    public Treatment getTreatment(int id) {
+        return this.treatments.get(id);
+    }
+
+    public int getMaxCapacity(int idTreatment) {
+        Treatment tr = treatments.get(idTreatment);
+        if(tr == null) {
+            return 0;
+        }
+        Integer cap = maxCapacity.get(tr);
+        return cap == null ? 0 : cap;
+    }
+
     public void setMaxCapacity(int idTreatment, int capacity) {
         Treatment tr = treatments.get(idTreatment);
         if(tr != null) {
@@ -49,10 +58,14 @@ public class Center {
     }
 
     public void addAppointment(Appointment appointment) {
-        Treatment tr = appointment.getTreatment();
+        Treatment tr = this.getTreatment(appointment.getTreatmentId());
         if(tr != null && treatments.containsKey(tr.getId())) {
             appointments.add(appointment);
         }
+    }
+
+    public void removeAppointment(Appointment appointment) {
+        appointments.remove(appointment);
     }
 
     public int getId() {
@@ -63,21 +76,25 @@ public class Center {
         return appointments;
     }
 
+    public ArrayList<Appointment> getAppointmentsByTreatment(int treatmentId) {
+        ArrayList<Appointment> filtered = new ArrayList<>();
+        Treatment tr = this.getTreatment(treatmentId);
+        if(tr != null) {
+            for (Appointment ap : this.appointments) {
+                if (ap.getTreatmentId() == treatmentId) {
+                    filtered.add(ap);
+                }
+            }
+        }
+        return filtered;
+
+    }
     public Map<Integer, Treatment> getTreatments() {
         return treatments;
     }
 
     public Map<Treatment, Integer> getMaxCapacities() {
         return maxCapacity;
-    }
-
-    public int getMaxCapacity(int idTreatment) {
-        Treatment tr = treatments.get(idTreatment);
-        if(tr == null) {
-            return 0;
-        }
-        Integer cap = maxCapacity.get(tr);
-        return cap == null ? 0 : cap;
     }
 
     @Override

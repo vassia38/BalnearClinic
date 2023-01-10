@@ -4,7 +4,7 @@ import java.net.*;
 import java.io.*;
 
 import domain.Appointment;
-import domain.Treatment;
+import domain.AppointmentRequest;
 import service.Controller;
 
 import java.time.LocalDateTime;
@@ -31,26 +31,29 @@ public class Client {
     }
 
     public void simulate() {
+        String nametag = "Client Thread " + Thread.currentThread().getId();
         int current_thread_duration = duration;
 
         try {
             while (current_thread_duration > 0) {
-                System.out.println("Client Thread " + Thread.currentThread().getId() + " duration left: " + current_thread_duration);
+                System.out.println(nametag + " duration left: " + current_thread_duration);
                 Thread.sleep(interval * 1000L);
                 current_thread_duration -= interval;
 
                 Socket socket = new Socket(address, port);
-                DataInputStream input = new DataInputStream(socket.getInputStream());
+                ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
                 ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
-                System.out.println("Connected");
+                System.out.println(nametag + " Connected");
 
-                output.writeObject(getRandomAppointment());
+                output.writeObject(new AppointmentRequest(getRandomAppointment()));
+                Object response = input.readObject();
 
                 socket.close();
                 input.close();
                 output.close();
+                System.out.println(nametag + " Disconnected");
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException | InterruptedException | ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
     }
@@ -63,14 +66,13 @@ public class Client {
 
         int centerId = rn.nextInt(1, n + 1);
         int treatmentId = rn.nextInt(1, m + 1);
-        Treatment tr = controller.getCenter(centerId).getTreatment(treatmentId);
 
         int hour = rn.nextInt(10, 19);
         int minute = rn.nextInt(0, 59);
         minute = minute / 10 * 10; // appointments can only be made in steps of 10 minutes
         LocalTime time = LocalTime.of(hour, minute);
 
-        Appointment appointment = new Appointment(centerId, tr, time);
+        Appointment appointment = new Appointment(String.valueOf(Thread.currentThread().getId()),centerId, treatmentId, time);
         int cancel = rn.nextInt() % 2;
         if (cancel == 1) {
             appointment.cancel();
