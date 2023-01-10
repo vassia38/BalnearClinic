@@ -7,14 +7,18 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ThreadPooledServer implements Runnable {
     private final int duration;
     private final int interval;
     protected int serverPort = 8080, poolSize = 10;
     protected ServerSocket serverSocket = null;
-    protected boolean isStopped = false;
-    protected Thread runningThread= null;
+    private ScheduledExecutorService scheduledVerification;
+    private ExecutorService executor;
+    protected AtomicBoolean shouldStop = new AtomicBoolean();
     protected ExecutorService threadPool;
     private final Controller controller;
 
@@ -30,65 +34,44 @@ public class ThreadPooledServer implements Runnable {
     }
 
     public void run() {
-        synchronized(this){
-            this.runningThread = Thread.currentThread();
-        }
-        Thread integrityCheckThread = new Thread(this::checkIntegrity);
-        integrityCheckThread.start();
-
-        openServerSocket();
-        while( !isStopped()){
-            Socket clientSocket;
-            try {
-                clientSocket = this.serverSocket.accept();
-            } catch (IOException e) {
-                if(isStopped()) {
-                    break;
+        scheduledVerification = Executors.newSingleThreadScheduledExecutor();
+        scheduledVerification.scheduleAtFixedRate(
+            () -> {
+                try {
+                    controller.checkIntegrity();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
                 }
-                throw new RuntimeException("Error accepting client connection", e);
-            }
-            this.threadPool.execute(
-                    new WorkerRunnable(clientSocket,"Thread Pooled Server")
-            );
-        }
+            },
+            0, interval, TimeUnit.SECONDS
+        );
+        executor = Executors.newFixedThreadPool(poolSize);
+
         try {
-            integrityCheckThread.join();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-        this.threadPool.shutdown();
-        System.out.println("Server Stopped.") ;
-    }
-
-
-    private void checkIntegrity() {
-        int current_thread_duration = duration;
-        while(current_thread_duration > 0) {
-            try {
-                Thread.sleep(interval * 1000L);
-                current_thread_duration -= interval;
-                System.out.println("Server: Integrity check...");
-                /*
-                LOCK ALL RESOURCES ? =>
-                CLIENTS HAVE TO WAIT FOR INTEGRITY CHECK TO FINISH...
-                */
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+            openServerSocket();
+            while (!shouldStop.get()) {
+                Socket client = serverSocket.accept();
+                System.out.println("Client connected ...");
+                executor.submit(new WorkerRunnable(client, controller, shouldStop));
             }
-
+        } catch (IOException e) {
+            System.out.println(e);
+            throw new RuntimeException(e);
+        } finally {
+            System.out.println("Shutting down");
+            stop();
         }
-    }
-
-    private synchronized boolean isStopped() {
-        return this.isStopped;
     }
 
     public synchronized void stop() {
-        this.isStopped = true;
         try {
-            this.serverSocket.close();
+            shouldStop.set(true);
+            executor.shutdownNow();
+            scheduledVerification.shutdownNow();
+            serverSocket.close();
+            System.exit(0);
         } catch (IOException e) {
-            throw new RuntimeException("Error closing server", e);
+            throw new RuntimeException(e);
         }
     }
 

@@ -9,7 +9,8 @@ public class Main {
         int n = 3, m = 5;
         int p = 10;
         int n_clients = 10;
-        int sim_duration_seconds = 3 * 60;
+        int sim_duration = 3;
+        int sim_duration_seconds = sim_duration * 60;
         int sim_client_interval = 2;
         int sim_server_interval = 5;
         int port = 9000;
@@ -38,8 +39,7 @@ public class Main {
             e.printStackTrace();
         }
 
-        System.out.println("Stopping Server");
-        server.stop();
+        //server.stop();
     }
 
     private static void initializeCentersDefault(int n) {
